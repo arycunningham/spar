@@ -254,13 +254,14 @@ def main(args):
 	rospy.init_node('guidance')
 
 	# List of waypoints
+	flightAlt = 1.0
 	# [X, Y, Z, Yaw]
-	wps = [[ 0.0, 0.0, 1.0, 0.0],
-		   [ 1.0, 1.0, 1.0, 0.0],
-		   [-1.0, 1.0, 1.0, 0.0],
-		   [-1.0,-1.0, 1.0, 0.0],
-		   [ 1.0,-1.0, 1.0, 0.0],
-		   [ 0.0, 0.0, 1.0, 0.0]]
+	wps = [[ 0.0, 0.0, flightAlt, 0.0],
+		   [ 1.0, 1.0, flightAlt, 0.0],
+		   [-1.0, 1.0, flightAlt, 0.0],
+		   [-1.0,-1.0, flightAlt, 0.0],
+		   [ 1.0,-1.0, flightAlt, 0.0],
+		   [ 0.0, 0.0, flightAlt, 0.0]]
 
 	# Create our guidance class option
 	guide = Guidance(wps)
