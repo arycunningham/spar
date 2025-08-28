@@ -198,7 +198,9 @@ class Guidance():
 	def send_wp(self, wp):
 		# Make sure the waypoint is valid before continuing
 		if not self.check_waypoint(wp):
-			raise ArgumentError("Invalid waypoint input!")
+			rospy.logwarn("Invalid waypoint, skipped...")
+			return False
+			# raise ArgumentError("Invalid waypoint input!")
 
 		# Build the flight goal
 		goal = FlightMotionGoal()
