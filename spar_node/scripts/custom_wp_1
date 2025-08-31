@@ -268,11 +268,14 @@ def main(args):
 	# List of waypoints
 	# [X, Y, Z, Yaw]
 	wps = [[ 0.0, 0.0, surveyAltitude, 0.0],
-		   [ 1.0, 1.0, surveyAltitude, 0.0],
-		   [-1.0, 1.0, surveyAltitude, 0.0],
-		   [-1.0,-1.0, surveyAltitude, 0.0],
-		   [ 1.0,-1.0, surveyAltitude, 0.0],
-		   [ 0.0, 0.0, surveyAltitude, 0.0]]
+		   [ 3.0, 0.0, surveyAltitude, 0.0],
+		   [ 3.0, 2.0, surveyAltitude, 0.0],
+		   [-3.0, 2.0, surveyAltitude, 0.0],
+		   [-3.0,-2.0, surveyAltitude, 0.0],
+		   [ 3.0,-2.0, surveyAltitude, 0.0],
+		   [ 3.0, 0.0, surveyAltitude, 0.0],
+		   [ 0.0, 0.0, surveyAltitude, 0.0],
+		   [ 0.0, 0.0, 0.0, 0.0]]
 
 	# Create our guidance class option
 	guide = Guidance(wps)
