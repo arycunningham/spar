@@ -28,12 +28,12 @@ class Guidance():
 		# Make sure we have a valid waypoint list
 		# Get Boundary values
 		self.safeRangeX = rospy.get_param("~safeRangeX", 1)
-		self.safeRangeX = rospy.get_param("~safeRangeX", 1)
-		self.safeRangeX = rospy.get_param("~safeRangeX", 1)
+		self.safeRangeY = rospy.get_param("~safeRangeY", 1)
+		self.safeRangeZ = rospy.get_param("~safeRangeZ", 1)
 
 
 		if not self.check_waypoints(waypoints):
-			raise ArgumentError("Invalid waypoint list input!")
+			raise ArgumentError("Invalid waypoint list input!")"
 
 		# Internal counter to see what waypoint were are up to
 		self.waypoint_counter = 0
