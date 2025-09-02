@@ -47,7 +47,7 @@ class Guidance():
 		# Save the input waypoints
 		self.waypoints = waypoints
 		# Display full path
-		self.display_path(waypoints,"/guidance/fullPath")
+		self.display_path = (waypoints,"/guidance/fullPath")
 
 		# Make some space to record down our current location
 		self.current_location = Point()
