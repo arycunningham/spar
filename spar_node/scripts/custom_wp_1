@@ -356,7 +356,7 @@ def display_path(self, wps, name):
 def main(args):
 	# Initialise ROS
 	rospy.init_node('guidance')
-	surveyAltitude = rospy.get_param("~surveyAlt", 1)
+	surveyAltitude = rospy.get_param("~surveyAlt", 3.5)
 	# List of waypoints
 	# [X, Y, Z, Yaw]
 	wps = [[ 0.0, 0.0, surveyAltitude, 0.0],
