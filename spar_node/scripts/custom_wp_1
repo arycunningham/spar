@@ -33,7 +33,7 @@ class Guidance():
 
 
 		if not self.check_waypoints(waypoints):
-			raise ArgumentError("Invalid waypoint list input!")"
+			raise ArgumentError("Invalid waypoint list input!")
 
 		# Internal counter to see what waypoint were are up to
 		self.waypoint_counter = 0
