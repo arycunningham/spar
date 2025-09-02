@@ -284,7 +284,7 @@ class Guidance():
 						# start/end), then breadcrumb returns and empty vector
 						# XXX: You could also use res.path_sparse (see breadcrumb docs)
 						breadcrumbWaypoints = []
-						if len(res.path_sparse.poses) > 0:
+						if len(res.path.poses) > 0:
 							# Print the path to the screen
 							rospy.loginfo("Segment {}-1 to {}:".format(self.waypoint_counter, self.waypoint_counter))
 							rospy.loginfo("[%0.2f;%0.2f;%0.2f] => [%0.2f;%0.2f;%0.2f]",
@@ -292,12 +292,12 @@ class Guidance():
 										req.end.x,req.end.y,req.end.z)
 
 							# Loop through the solution returned from breadcrumb
-							for i in range(len(res.path_sparse.poses)):
+							for i in range(len(res.path.poses)):
 								rospy.loginfo("    [%0.2f;%0.2f;%0.2f]",
-											res.path_sparse.poses[i].position.x,
-											res.path_sparse.poses[i].position.y,
-											res.path_sparse.poses[i].position.z)
-								breadcrumbWaypoints.append([res.path_sparse.poses[i].position.x, res.path_sparse.poses[i].position.y, res.path_sparse.poses[i].position.z, 0.0])
+											res.path.poses[i].position.x,
+											res.path.poses[i].position.y,
+											res.path.poses[i].position.z)
+								breadcrumbWaypoints.append([res.path.poses[i].position.x, res.path.poses[i].position.y, res.pat.poses[i].position.z, 0.0])
 							# Display path
 							#print(breadcrumbWaypoints)
 							self.breadcrumbWaypoints = breadcrumbWaypoints
