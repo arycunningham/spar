@@ -27,9 +27,9 @@ class Guidance():
 	def __init__(self, waypoints):
 		# Make sure we have a valid waypoint list
 		# Get Boundary values
-		self.safeRangeX = rospy.get_param("~safeRangeX", 1)
-		self.safeRangeY = rospy.get_param("~safeRangeY", 1)
-		self.safeRangeZ = rospy.get_param("~safeRangeZ", 1)
+		self.safeRangeX = rospy.get_param("~safeRangeX", 4)
+		self.safeRangeY = rospy.get_param("~safeRangeY", 2.5)
+		self.safeRangeZ = rospy.get_param("~safeRangeZ", 4)
 
 
 		if not self.check_waypoints(waypoints):
