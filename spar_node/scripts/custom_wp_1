@@ -332,7 +332,7 @@ class Guidance():
 #visualise waypooints
 def display_path(self, wps, name):
 	rospy.loginfo("Displaying Path...")
-	pub_path = self.rospy.publisher(name , Path, queue_size=10,latch=True)
+	pub_path = rospy.Publisher(name , Path, queue_size=10,latch=True)
 	msg = Path()
 	msg.header.frame_id = "/map"
 	msg.header.stamp =rospy.Time.now()
