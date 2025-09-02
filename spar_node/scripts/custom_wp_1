@@ -312,7 +312,7 @@ class Guidance():
 
 					else:
 						if self.breadcrumbWaypointsCounter < (len(self.breadcrumbWaypoints)):
-							self.send_wp(self.waypoints[self.breadcrumbWaypointsCounter])
+							self.send_wp(self.breadcrumbWaypoints[self.breadcrumbWaypointsCounter])
 							# Increment our waypoint counter
 							self.breadcrumbWaypointsCounter += 1
 						else:
