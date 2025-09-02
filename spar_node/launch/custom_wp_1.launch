@@ -4,7 +4,7 @@
 		<!-- Survey Altitude-->
 		<param name="surveyAlt" type="double" value= "1.5" />
 		<!-- Linear and yaw motion velocities -->
-		<param name="vel_linear" type="double" value="2.0" />
+		<param name="vel_linear" type="double" value="1.0" />
 		<param name="vel_yaw" type="double" value="0.2" />
 
 		<!-- Position and yaw waypoint accuracies -->

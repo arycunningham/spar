@@ -27,13 +27,9 @@ class Guidance():
 	def __init__(self, waypoints):
 		# Make sure we have a valid waypoint list
 		# Get Boundary values
-		self.safeRangeX = rospy.get_param("~safe_rangeX", 4)
-		self.safeRangeY = rospy.get_param("~safe_rangeY", 2.5)
-		self.safeRangeZ = rospy.get_param("~safe_rangeZ", 4)
-
 
 		if not self.check_waypoints(waypoints):
-			raise ArgumentError("Invalid waypoint list input!")
+			raise ValueError("Invalid waypoint list input!")
 
 		# Internal counter to see what waypoint were are up to
 		self.waypoint_counter = 0
@@ -139,8 +135,8 @@ class Guidance():
 			rospy.logwarn("Waypoint has an invalid length (must be X/Y/Z/Yaw)")
 			return False
 		# Check if waypoint is inside the net
-		if abs(wp[0]) > self.safeRangeX or abs(wp[1]) > self.safeRangeY or abs(wp[2]) > self.safeRangeZ:
-			rospy.logwarn("Waypoint has an invalid size for O134 (must be -{}<X<{} |{}<Y<{}| {}<Z<{} |Yaw)".format(self.safeRangeX,self.safeRangeX,self.safeRangeY,self.safeRangeY,self.safeRangeZ,self.safeRangeZ))
+		if abs(wp[0]) > 4.5 or abs(wp[1]) > 2.75 or abs(wp[2]) > 4.5:
+			rospy.logwarn("Waypoint has an invalid size for O134 (must be -4<X<4 |-2.5<Y<2.5| 0<Z<4 |Yaw)")
 			return False
 		# If we haven't returned false yet, then waypoint looks valid!
 		return True
@@ -365,7 +361,21 @@ def main(args):
 		   [-4.0, 2.5, surveyAltitude, 0.0],
 		   [-4.0,-2.5, surveyAltitude, 0.0],
 		   [ 4.0,-2.5, surveyAltitude, 0.0],
-		   [ 4.0, 0.0, surveyAltitude, 0.0]]
+		   [ 3.0,-1.875, surveyAltitude, 0.0],
+		   [ 3.0,1.875, surveyAltitude, 0.0],
+		   [ -3.0,1.875, surveyAltitude, 0.0],
+		   [ -3.0,-1.875, surveyAltitude, 0.0],
+		   [ 3.0,-1.875, surveyAltitude, 0.0],
+		   [ 2.0,-1.25, surveyAltitude, 0.0],
+		   [ 2.0,1.25, surveyAltitude, 0.0],
+		   [ -2.0,1.25, surveyAltitude, 0.0],
+		   [ -2.0,-1.25, surveyAltitude, 0.0],
+		   [ 2.0,-1.25, surveyAltitude, 0.0],
+		   [ 1.0,-0.625, surveyAltitude, 0.0],
+		   [ 1.0,0.625, surveyAltitude, 0.0],
+		   [ -1.0,0.625, surveyAltitude, 0.0],
+		   [ -1.0,-0.625, surveyAltitude, 0.0],
+		   [ 1.0,-0.625, surveyAltitude, 0.0]]
 
 	#/wps = [[ 0.0, 0.0, flightAlt, 0.0],
 		   #[ 1.0, 1.0, flightAlt, 0.0],
