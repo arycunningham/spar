@@ -301,7 +301,7 @@ class Guidance():
 							# Display path
 							#print(breadcrumbWaypoints)
 							self.breadcrumbWaypoints = breadcrumbWaypoints
-							self.display_path(breadcrumbWaypoints, "/guidance/pathBreadcrumb")
+							self.display_path = (breadcrumbWaypoints, "/guidance/pathBreadcrumb")
 							self.breadcrumbMode = True
 							self.breadcrumbWaypointsCounter = 0
 							self.send_wp(self.breadcrumbWaypoints[self.breadcrumbWaypointsCounter])
