@@ -360,12 +360,12 @@ def main(args):
 	# List of waypoints
 	# [X, Y, Z, Yaw]
 	wps = [[ 0.0, 0.0, surveyAltitude, 0.0],
-		   [ 3.9, -2.4, surveyAltitude, 0.0],
-		   [ 3.9, 2.4, surveyAltitude, 0.0],
-		   [-3.9, 2.4, surveyAltitude, 0.0],
-		   [-3.9,-2.4, surveyAltitude, 0.0],
-		   [ 3.9,-2.4, surveyAltitude, 0.0],
-		   [ 3.9, 0.0, surveyAltitude, 0.0]]
+		   [ 4.0, -2.5, surveyAltitude, 0.0],
+		   [ 4.0, 2.5, surveyAltitude, 0.0],
+		   [-4.0, 2.5, surveyAltitude, 0.0],
+		   [-4.0,-2.5, surveyAltitude, 0.0],
+		   [ 4.0,-2.5, surveyAltitude, 0.0],
+		   [ 4.0, 0.0, surveyAltitude, 0.0]]
 
 	#/wps = [[ 0.0, 0.0, flightAlt, 0.0],
 		   #[ 1.0, 1.0, flightAlt, 0.0],
