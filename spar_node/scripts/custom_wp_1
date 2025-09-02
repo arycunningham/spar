@@ -27,9 +27,9 @@ class Guidance():
 	def __init__(self, waypoints):
 		# Make sure we have a valid waypoint list
 		# Get Boundary values
-		self.safeRangeX = rospy.get_param("~safeRangeX", 4)
-		self.safeRangeY = rospy.get_param("~safeRangeY", 2.5)
-		self.safeRangeZ = rospy.get_param("~safeRangeZ", 4)
+		self.safeRangeX = rospy.get_param("~safe_rangeX", 4)
+		self.safeRangeY = rospy.get_param("~safe_rangeY", 2.5)
+		self.safeRangeZ = rospy.get_param("~safe_rangeZ", 4)
 
 
 		if not self.check_waypoints(waypoints):
@@ -360,14 +360,12 @@ def main(args):
 	# List of waypoints
 	# [X, Y, Z, Yaw]
 	wps = [[ 0.0, 0.0, surveyAltitude, 0.0],
-		   [ 3.5, 2.0, surveyAltitude, 0.0],
-		   [ 3.5, 2.0, surveyAltitude, 0.0],
-		   [-3.5, 2.0, surveyAltitude, 0.0],
-		   [-3.5,-2.0, surveyAltitude, 0.0],
-		   [ 3.5,-2.0, surveyAltitude, 0.0],
-		   [ 3.5, 0.0, surveyAltitude, 0.0],
-		   [ 0.0, 0.0, surveyAltitude, 0.0],
-		   [ 0.0, 0.0, 0.0, 0.0]]
+		   [ 3.9, -2.4, surveyAltitude, 0.0],
+		   [ 3.9, 2.4, surveyAltitude, 0.0],
+		   [-3.9, 2.4, surveyAltitude, 0.0],
+		   [-3.9,-2.4, surveyAltitude, 0.0],
+		   [ 3.9,-2.4, surveyAltitude, 0.0],
+		   [ 3.9, 0.0, surveyAltitude, 0.0]]
 
 	#/wps = [[ 0.0, 0.0, flightAlt, 0.0],
 		   #[ 1.0, 1.0, flightAlt, 0.0],
