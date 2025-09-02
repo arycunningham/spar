@@ -286,7 +286,7 @@ class Guidance():
 						breadcrumbWaypoints = []
 						if len(res.path_sparse.poses) > 0:
 							# Print the path to the screen
-							rospy.loginfo("Segment {}-1 to {}:", format(self.waypoint_counter, self.waypoint_counter))
+							rospy.loginfo("Segment {}-1 to {}:".format(self.waypoint_counter, self.waypoint_counter))
 							rospy.loginfo("[%0.2f;%0.2f;%0.2f] => [%0.2f;%0.2f;%0.2f]",
 										req.start.x,req.start.y,req.start.z,
 										req.end.x,req.end.y,req.end.z)
