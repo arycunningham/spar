@@ -297,7 +297,7 @@ class Guidance():
 											res.path.poses[i].position.x,
 											res.path.poses[i].position.y,
 											res.path.poses[i].position.z)
-								breadcrumbWaypoints.append([res.path.poses[i].position.x, res.path.poses[i].position.y, res.pat.poses[i].position.z, 0.0])
+								breadcrumbWaypoints.append([res.path.poses[i].position.x, res.path.poses[i].position.y, res.path.poses[i].position.z, 0.0])
 							# Display path
 							#print(breadcrumbWaypoints)
 							self.breadcrumbWaypoints = breadcrumbWaypoints
