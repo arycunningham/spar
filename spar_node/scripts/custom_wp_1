@@ -47,7 +47,7 @@ class Guidance():
 		# Save the input waypoints
 		self.waypoints = waypoints
 		# Display full path
-		self.display_path = (waypoints,"/guidance/fullPath")
+		self.display_path(waypoints,"/guidance/fullPath")
 
 		# Make some space to record down our current location
 		self.current_location = Point()
@@ -301,7 +301,7 @@ class Guidance():
 							# Display path
 							#print(breadcrumbWaypoints)
 							self.breadcrumbWaypoints = breadcrumbWaypoints
-							self.display_path = (breadcrumbWaypoints, "/guidance/pathBreadcrumb")
+							self.display_path(breadcrumbWaypoints, "/guidance/pathBreadcrumb")
 							self.breadcrumbMode = True
 							self.breadcrumbWaypointsCounter = 0
 							self.send_wp(self.breadcrumbWaypoints[self.breadcrumbWaypointsCounter])
@@ -312,7 +312,7 @@ class Guidance():
 
 					else:
 						if self.breadcrumbWaypointsCounter < (len(self.breadcrumbWaypoints)):
-							self.send_wp(self.waypoints[self.breadcrumbWaypointsCounter])
+							self.send_wp(self.breadcrumbWaypoints[self.breadcrumbWaypointsCounter])
 							# Increment our waypoint counter
 							self.breadcrumbWaypointsCounter += 1
 						else:

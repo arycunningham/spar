@@ -2,7 +2,7 @@
 <launch>
 	<node name="guidance" pkg="spar_node" type="custom_wp_1" respawn="false" output="screen">
 		<!-- Survey Altitude-->
-		<param name="surveyAlt" type="double" value= "2.0" />
+		<param name="surveyAlt" type="double" value= "1.5" />
 		<!-- Linear and yaw motion velocities -->
 		<param name="vel_linear" type="double" value="2.0" />
 		<param name="vel_yaw" type="double" value="0.2" />
