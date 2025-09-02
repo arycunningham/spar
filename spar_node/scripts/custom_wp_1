@@ -57,8 +57,8 @@ class Guidance():
 		# Set our position and yaw waypoint accuracies
 		self.accuracy_pos = rospy.get_param("~acc_pos", 0.1)
 		self.accuracy_yaw = rospy.get_param("~acc_yaw", 0.1)
-		# Get flight Alitude
-		self.flightAlt = rospy.get_param("~flightAlt", 1)
+		# Get survey Alitude
+		self.surveytAlt = rospy.get_param("~surveyAltitude", 1)
 
 		# Create our action client
 		action_ns = rospy.get_param("~action_topic", 'spar/flight')
