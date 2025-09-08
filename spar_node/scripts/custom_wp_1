@@ -38,7 +38,7 @@ class Guidance():
 		# Internal counter to see what waypoint were are up to
 		self.waypoint_counter = 0
 
-		
+		self.critical_battery = 20
 
 		# Set a flag to indicate that we are doing a specific inspection
 		# and that we are not following our waypoint list
