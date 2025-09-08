@@ -14,6 +14,7 @@ from std_msgs.msg import Bool
 
 from nav_msgs.msg import Path
 
+from sensor_msgs.msg import CompressedImage
 from spar_msgs.msg import FlightMotionAction, FlightMotionGoal
 
 # Libaries for interfacing with Breadcrumb
@@ -95,8 +96,10 @@ class Guidance():
 			# Publisher to output our waypoint progress
 			self.pub_progress = rospy.Publisher("/waypoint_progress", Float32, queue_size=10)		
 
-			self.sub_a = rospy.Publisher('/actuator_control/actuator_a', Bool, queue_size=10)
-			self.sub_b = rospy.Publisher('/actuator_control/actuator_b', Bool, queue_size=10)	
+			self.pub_a = rospy.Publisher('/actuator_control/actuator_a', Bool, queue_size=10)
+			self.pub_b = rospy.Publisher('/actuator_control/actuator_b', Bool, queue_size=10)	
+
+			self.aruco_sub = rospy.Subscriber('/processed_aruco/image/compressed', CompressedImage, queue_size=10)
 
 			# Setup first waypoint segment
 			self.send_wp(self.waypoints[0])
@@ -213,15 +216,15 @@ class Guidance():
 
 		rospy.loginfo("Reached diversion ROI!")
 		# XXX: Do something?
-		self.sub_a.publish(True)
-		self.sub_b.publish(True)
+		self.pub_a.publish(True)
+		self.pub_b.publish(True)
 		
 		rospy.loginfo("Dispensing Payload")
 
 		rospy.sleep(rospy.Duration(10))
 
-		self.sub_a.publish(False)
-		self.sub_b.publish(False)
+		self.pub_a.publish(False)
+		self.pub_b.publish(False)
 
 		rospy.loginfo("Stopping servo motors")
 
