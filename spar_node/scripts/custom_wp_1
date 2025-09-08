@@ -8,6 +8,9 @@ import actionlib
 from actionlib_msgs.msg import GoalStatus
 
 from geometry_msgs.msg import Point, PoseStamped
+from tf.transformations import euler_from_quaternion
+
+from std_msgs.msg import Bool
 
 from nav_msgs.msg import Path
 
@@ -84,11 +87,16 @@ class Guidance():
 
 			# Callback to save "current location" such that we can perform and return
 			# from a diversion to the correct location
-			self.sub_pose = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, self.callback_pose)
+			#self.sub_pose = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, self.callback_pose)
+
+			self.sub_pose = rospy.Subscriber("/uavasr/pose", PoseStamped, self.callback_pose)
 			# Subscriber to catch "ROI" diversion commands
 			self.sub_roi = rospy.Subscriber("/target_detection/roi", PoseStamped, self.callback_inspect_roi)
 			# Publisher to output our waypoint progress
-			self.pub_progress = rospy.Subscriber("~waypoint_progress", Float32, 10)			
+			self.pub_progress = rospy.Publisher("/waypoint_progress", Float32, queue_size=10)		
+
+			self.sub_a = rospy.Publisher('/actuator_control/actuator_a', Bool, queue_size=10)
+			self.sub_b = rospy.Publisher('/actuator_control/actuator_b', Bool, queue_size=10)	
 
 			# Setup first waypoint segment
 			self.send_wp(self.waypoints[0])
@@ -162,8 +170,9 @@ class Guidance():
 		rospy.loginfo("Unregistering from topics and shutting down...")
 		self.sub_pose.unregister()
 		self.sub_roi.unregister()
+		self.pub_progress.unregister()
+		self.sub_battery.unregister()
 		self.spar_client.cancel_goal()
-
 		rospy.loginfo("Guidance stopped")
 
 
@@ -171,7 +180,7 @@ class Guidance():
 	def callback_pose(self, msg_in):
 		# Store the current position at all times so it can be accessed later
 		self.current_location = msg_in.pose.position
-
+		#rospy.loginfo("Coordinates are: %s", self.current_location)
 
 	# This function will fire whenever a ROI pose message is sent
 	# It is also responsible for handling the ROI "inspection task"
@@ -184,19 +193,18 @@ class Guidance():
 		self.spar_client.cancel_goal()
 		# Record our current location so we can return to it later
 		start_location = self.current_location
-		# XXX:	It would also be a good idea to capture "current yaw" from
-		#		the pose to maintain that throughout a diversion
 
 		# Set the "diversion waypoint" (at yaw zero)
-		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, self.current_location.z, 0.0]
+		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, start_location.z, 1.0]
 		# Set the "return waypoint" (at yaw zero)
-		rwp = [self.current_location.x, self.current_location.y, self.current_location.z, 0.0]
-		# Set the last waypoint
-		lwp = [msg_in.pose.position.x, msg_in.pose.position.y, msg_in.pose.position.z, 0.0]
-		self.waypoints.append(lwp)
+		rwp = [start_location.x, start_location.y, start_location.z, 1.0]
 		# XXX: Could pause here for a moment with ( "rospy.sleep(...)" ) to make sure the UAV stops correctly
 
+		rospy.sleep(rospy.Duration(1))
+
 		self.send_wp(dwp)
+		rospy.loginfo("Heading to diversion waypoint: %s", dwp)
+
 		self.spar_client.wait_for_result()
 		if self.spar_client.get_state() != GoalStatus.SUCCEEDED:
 			# Something went wrong, cancel out of guidance!
@@ -205,11 +213,23 @@ class Guidance():
 
 		rospy.loginfo("Reached diversion ROI!")
 		# XXX: Do something?
+		self.sub_a.publish(True)
+		self.sub_b.publish(True)
+		
+		rospy.loginfo("Dispensing Payload")
+
 		rospy.sleep(rospy.Duration(10))
+
+		self.sub_a.publish(False)
+		self.sub_b.publish(False)
+
+		rospy.loginfo("Stopping servo motors")
 
 		rospy.loginfo("Returning to flight plan...")
 
 		self.send_wp(rwp)
+		rospy.loginfo("Heading back to  waypoint: %s", rwp)
+
 		self.spar_client.wait_for_result()
 		if self.spar_client.get_state() != GoalStatus.SUCCEEDED:
 			# Something went wrong, cancel out of guidance!
@@ -341,34 +361,34 @@ class Guidance():
 				rospy.loginfo("Mission cancelled!")
 				rospy.signal_shutdown("cancelled")
 
-#visualise waypooints
-def display_path(self, wps, name):
-	rospy.loginfo("Displaying Path...")
-	pub_path = rospy.Publisher(name , Path, queue_size=10,latch=True)
-	msg = Path()
-	msg.header.frame_id = "/map"
-	msg.header.stamp =rospy.Time.now()
+	#visualise waypooints
+	def display_path(self, wps, name):
+		rospy.loginfo("Displaying Path...")
+		pub_path = rospy.Publisher(name , Path, queue_size=10,latch=True)
+		msg = Path()
+		msg.header.frame_id = "/map"
+		msg.header.stamp =rospy.Time.now()
 
-	for wp in wps:
-		pose = PoseStamped()
-		pose.pose.position.x = wp[0]
-		pose.pose.position.y = wp[1]
-		pose.pose.position.z = wp[2]
+		for wp in wps:
+			pose = PoseStamped()
+			pose.pose.position.x = wp[0]
+			pose.pose.position.y = wp[1]
+			pose.pose.position.z = wp[2]
 
-		pose.pose.orientation.w = 1.0
-		pose.pose.orientation.x = 0.0
-		pose.pose.orientation.y = 0.0
-		pose.pose.orientation.z = 0.0
+			pose.pose.orientation.w = 1.0
+			pose.pose.orientation.x = 0.0
+			pose.pose.orientation.y = 0.0
+			pose.pose.orientation.z = 0.0
 
-		msg.poses.append(pose)
-	rospy.loginfo("Publishing Path...")
-	pub_path.publish(msg)
+			msg.poses.append(pose)
+			rospy.loginfo("Publishing Path...")
+			pub_path.publish(msg)
 
 
 def main(args):
 	# Initialise ROS
 	rospy.init_node('guidance')
-	surveyAltitude = rospy.get_param("~surveyAlt", 3.5)
+	surveyAltitude = rospy.get_param("~surveyAlt", 1.5)
 	# List of waypoints
 	# [X, Y, Z, Yaw]
 	wps = [[ 0.0, 0.0, surveyAltitude, 0.0],
@@ -392,14 +412,6 @@ def main(args):
 		   [ -1.0,0.625, surveyAltitude, 0.0],
 		   [ -1.0,-0.625, surveyAltitude, 0.0],
 		   [ 1.0,-0.625, surveyAltitude, 0.0]]
-
-	#/wps = [[ 0.0, 0.0, flightAlt, 0.0],
-		   #[ 1.0, 1.0, flightAlt, 0.0],
-		   #[-1.0, 1.0, flightAlt, 0.0],
-		   #[-1.0,-1.0, flightAlt, 0.0],
-		   #[ 1.3,-1.0, flightAlt, 0.0],
-		   #[ 1.3, 1.0, flightAlt, 0.0],
-		   #[ 0.0, 0.0, flightAlt, 0.0]]
 
 	# Create our guidance class option
 	guide = Guidance(wps)
