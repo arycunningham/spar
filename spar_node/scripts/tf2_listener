@@ -36,7 +36,7 @@ def callback_target_found(msg_in):
 		pose.pose.orientation.x = 0.0
 		pose.pose.orientation.y = 0.0
 		pose.pose.orientation.z = 0.0
-		pub_roi.publish()
+		pub_roi.publish(pose)
 		rospy.loginfo("ROI coordinates sent.")
 	except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
 		rospy.logwarn(e)
