@@ -17,6 +17,10 @@ from spar_msgs.msg import FlightMotionAction, FlightMotionGoal
 from breadcrumb.srv import RequestPath
 from breadcrumb.srv import RequestPathRequest
 
+from sensor_msgs.msg import BatteryState
+
+from std_msgs.msg import Float32
+
 # This is getting a bit more complicated now, so we'll put our information in
 # a class to keep track of all of our variables. This is not so much different
 # to the previous methods, other than the fact that the class will operate
@@ -39,6 +43,10 @@ class Guidance():
 		# This will stop our "waypoint is reached" callback from firing
 		# during the roi diversion and taking over our flight!
 		self.performing_roi = False
+        # Battery status
+		self.topic_battery = '/mavros/battery'
+        # Subscriber for current battery
+		self.sub_battery = rospy.Subscriber(self.topic_battery, BatteryState, self.callback_battery)
 
 		# Save the input waypoints
 		self.waypoints = waypoints
@@ -72,9 +80,15 @@ class Guidance():
 			# Good to go, start mission
 			rospy.loginfo("Starting waypoint mission")
 
+			# Callback to save "current location" such that we can perform and return
+			# from a diversion to the correct location
+			self.sub_pose = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, self.callback_pose)
+			# Subscriber to catch "ROI" diversion commands
+			self.sub_roi = rospy.Subscriber("/target_detection/roi", PoseStamped, self.callback_inspect_roi)
+			# Publisher to output our waypoint progress
+			self.pub_progress = rospy.Subscriber("~waypoint_progress", Float32, 10)			
+
 			# Setup first waypoint segment
-			# XXX:	Another option would be to do "takeoff" and leave "waypoint_counter = 0" to
-			#		begin the mission at the first waypoint after take-off
 			self.send_wp(self.waypoints[0])
 			self.waypoint_counter += 1
 			# Initialiseation of breadcrumb waypoints
@@ -84,22 +98,20 @@ class Guidance():
 
 			# Setup a timer to check if our waypoint has completed at 20Hz
 			self.timer = rospy.Timer( rospy.Duration(1.0/20.0), self.check_waypoint_status )
-			# Callback to save "current location" such that we can perform and return
-			# from a diversion to the correct location
-			# XXX: These topics could be hard-coded to avoid using a launch file
-			self.sub_pose = rospy.Subscriber("~pose", PoseStamped, self.callback_pose)
-			# Subscriber to catch "ROI" diversion commands
-			self.sub_roi = rospy.Subscriber("~roi", PoseStamped, self.callback_inspect_roi)
-
-			# XXX: Could have a publisher to output our waypoint progress
-			# throughout the flight (should publish each time the waypoint
-			# counter is increased). Note: will also need to import "Float32"
-			# from "std_msgs.msg" in the header
-			# self.pub_progress = rospy.Subscriber("~waypoint_progress", Float32, 10)
 
 			# If shutdown is issued (eg. CTRL+C), cancel current
 	 		# mission before rospy is shutdown.
 			rospy.on_shutdown( lambda : self.shutdown() )
+
+		def callback_battery(self, msg_in):
+			self.battery_per = msg_in.percentage
+
+		def uav_health(self, timer=None):
+			if self.battery_per <= self.critical_battery:
+				self.printAndSave("Battery under critical level, Safe landing start.")
+				self.printAndSave("Emergency land completed.")
+
+
 
 	# This function will check if a list of waypoints is in the format we expect
 	def check_waypoints(self, wps):
@@ -174,10 +186,12 @@ class Guidance():
 		#		the pose to maintain that throughout a diversion
 
 		# Set the "diversion waypoint" (at yaw zero)
-		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, msg_in.pose.position.z, 0.0]
+		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, self.current_location.z, 0.0]
 		# Set the "return waypoint" (at yaw zero)
 		rwp = [self.current_location.x, self.current_location.y, self.current_location.z, 0.0]
-
+		# Set the last waypoint
+		lwp = [msg_in.pose.position.x, msg_in.pose.position.y, msg_in.pose.position.z, 0.0]
+		self.waypoints.append(lwp)
 		# XXX: Could pause here for a moment with ( "rospy.sleep(...)" ) to make sure the UAV stops correctly
 
 		self.send_wp(dwp)
