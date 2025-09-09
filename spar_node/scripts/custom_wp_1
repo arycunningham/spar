@@ -119,10 +119,10 @@ class Guidance():
 	def callback_battery(self, msg_in):
 		self.battery_per = msg_in.percentage
 
-	def uav_health(self, timer=None):
-		if self.battery_per <= self.critical_battery:
-			self.printAndSave("Battery under critical level, Safe landing start.")
-			self.printAndSave("Emergency land completed.")
+	# def uav_health(self, timer=None):
+		# if self.battery_per <= self.critical_battery:
+			# self.printAndSave("Battery under critical level, Safe landing start.")
+			# self.printAndSave("Emergency land completed.")
 
 
 
