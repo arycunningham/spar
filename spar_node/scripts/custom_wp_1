@@ -42,7 +42,11 @@ class Guidance():
 		# Internal counter to see what waypoint were are up to
 		self.waypoint_counter = 0
 
-		self.critical_battery = 20
+		# Creates a yaw value to be used later
+		self.current_yaw = 0.0
+
+		# Creates critical battery percentage
+		self.critical_battery = 0.2
 
 		# Set a flag to indicate that we are doing a specific inspection
 		# and that we are not following our waypoint list
@@ -51,6 +55,8 @@ class Guidance():
 		self.performing_roi = False
         # Battery status
 		self.topic_battery = '/mavros/battery'
+		# Creates a battery percentage to be used later
+		self.battery_per = 0
         # Subscriber for current battery
 		self.sub_battery = rospy.Subscriber(self.topic_battery, BatteryState, self.callback_battery)
 
@@ -68,7 +74,7 @@ class Guidance():
 		self.accuracy_pos = rospy.get_param("~acc_pos", 0.1)
 		self.accuracy_yaw = rospy.get_param("~acc_yaw", 0.1)
 		# Get survey Alitude
-		self.surveytAlt = rospy.get_param("~surveyAltitude", 1)
+		self.surveytAlt = rospy.get_param("~surveyAltitude", 1.9)
 
 		# Create our action client
 		action_ns = rospy.get_param("~action_topic", 'spar/flight')
@@ -88,17 +94,21 @@ class Guidance():
 
 			# Callback to save "current location" such that we can perform and return
 			# from a diversion to the correct location
-			#self.sub_pose = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, self.callback_pose)
 
+			# Uncomment for flight day
+			# self.sub_pose = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, self.callback_pose)
+			#Use for emulation
 			self.sub_pose = rospy.Subscriber("/uavasr/pose", PoseStamped, self.callback_pose)
 			# Subscriber to catch "ROI" diversion commands
 			self.sub_roi = rospy.Subscriber("/target_detection/roi", PoseStamped, self.callback_inspect_roi)
 			# Publisher to output our waypoint progress
 			self.pub_progress = rospy.Publisher("/waypoint_progress", Float32, queue_size=10)		
 
+			# Publishes to servo motor
 			self.pub_a = rospy.Publisher('/actuator_control/actuator_a', Bool, queue_size=10)
 			self.pub_b = rospy.Publisher('/actuator_control/actuator_b', Bool, queue_size=10)	
 
+			# Subscribes to ?
 			self.aruco_sub = rospy.Subscriber('/processed_aruco/image/compressed', CompressedImage, queue_size=10)
 
 			# Setup first waypoint segment
@@ -116,15 +126,19 @@ class Guidance():
 	 		# mission before rospy is shutdown.
 			rospy.on_shutdown( lambda : self.shutdown() )
 
+	# Updates the battery percentage everytime it changes
 	def callback_battery(self, msg_in):
 		self.battery_per = msg_in.percentage
-
+	
+	# When the battery drops below 20% the drone automatically lands
 	def uav_health(self, timer=None):
 		if self.battery_per <= self.critical_battery:
 			self.printAndSave("Battery under critical level, Safe landing start.")
+			goal = FlightMotionGoal()
+			goal.motion = FlightMotionGoal.MOTION_LAND
+			goal.velocity_vertical = rospy.get_param("~speed", 0.2)
+			spar_client.send_goal(goal)
 			self.printAndSave("Emergency land completed.")
-
-
 
 	# This function will check if a list of waypoints is in the format we expect
 	def check_waypoints(self, wps):
@@ -177,12 +191,16 @@ class Guidance():
 		self.sub_battery.unregister()
 		self.spar_client.cancel_goal()
 		rospy.loginfo("Guidance stopped")
-
-
+	
+	#Transforms quaternion to euler to get yaw
+	def yaw_calc(self, q):
+		_, _, yaw = euler_from_quaternion([q.x, q.y, q.z, q.w])
+		return yaw
 	# This function will check receive the current pose of the UAV constantly
 	def callback_pose(self, msg_in):
 		# Store the current position at all times so it can be accessed later
 		self.current_location = msg_in.pose.position
+		self.current_yaw = self.yaw_calc(msg_in.pose.orientation)
 		#rospy.loginfo("Coordinates are: %s", self.current_location)
 
 	# This function will fire whenever a ROI pose message is sent
@@ -196,12 +214,12 @@ class Guidance():
 		self.spar_client.cancel_goal()
 		# Record our current location so we can return to it later
 		start_location = self.current_location
+		start_yaw = self.current_yaw
 
 		# Set the "diversion waypoint" (at yaw zero)
-		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, start_location.z, 1.0]
+		dwp = [msg_in.pose.position.x, msg_in.pose.position.y, self.surveytAlt, start_yaw]
 		# Set the "return waypoint" (at yaw zero)
-		rwp = [start_location.x, start_location.y, start_location.z, 1.0]
-		# XXX: Could pause here for a moment with ( "rospy.sleep(...)" ) to make sure the UAV stops correctly
+		rwp = [start_location.x, start_location.y, start_location.z, start_yaw]
 
 		rospy.sleep(rospy.Duration(1))
 
@@ -215,7 +233,8 @@ class Guidance():
 			return
 
 		rospy.loginfo("Reached diversion ROI!")
-		# XXX: Do something?
+
+		# Set rostopic to true to activate the payload deployment script
 		self.pub_a.publish(True)
 		self.pub_b.publish(True)
 		
@@ -223,6 +242,7 @@ class Guidance():
 
 		rospy.sleep(rospy.Duration(10))
 
+		# Deactivate deployment script
 		self.pub_a.publish(False)
 		self.pub_b.publish(False)
 
@@ -230,6 +250,7 @@ class Guidance():
 
 		rospy.loginfo("Returning to flight plan...")
 
+		# Return back to waypoint
 		self.send_wp(rwp)
 		rospy.loginfo("Heading back to  waypoint: %s", rwp)
 
@@ -378,7 +399,7 @@ class Guidance():
 			pose.pose.position.y = wp[1]
 			pose.pose.position.z = wp[2]
 
-			pose.pose.orientation.w = 1.0
+			pose.pose.orientation.w = 0.0
 			pose.pose.orientation.x = 0.0
 			pose.pose.orientation.y = 0.0
 			pose.pose.orientation.z = 0.0
@@ -391,7 +412,7 @@ class Guidance():
 def main(args):
 	# Initialise ROS
 	rospy.init_node('guidance')
-	surveyAltitude = rospy.get_param("~surveyAlt", 1.5)
+	surveyAltitude = rospy.get_param("~surveyAlt", 1.9)
 	# List of waypoints
 	# [X, Y, Z, Yaw]
 	wps = [[ 0.0, 0.0, surveyAltitude, 0.0],
@@ -415,6 +436,7 @@ def main(args):
 		   [ -1.0,0.625, surveyAltitude, 0.0],
 		   [ -1.0,-0.625, surveyAltitude, 0.0],
 		   [ 1.0,-0.625, surveyAltitude, 0.0]]
+
 
 	# Create our guidance class option
 	guide = Guidance(wps)
