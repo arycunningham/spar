@@ -106,7 +106,7 @@ class Guidance():
 
 			# Publishes to servo motor
 			self.pub_a = rospy.Publisher('/actuator_control/actuator_a', Bool, queue_size=10)
-			self.pub_b = rospy.Publisher('/actuator_control/actuator_b', Bool, queue_size=10)	
+			self.pub_b = rospy.Publisher('/actuator_control/actuator_b', Bool, queue_size=10)
 
 			# Subscribes to ?
 			self.aruco_sub = rospy.Subscriber('/processed_aruco/image/compressed', CompressedImage, queue_size=10)
@@ -114,7 +114,7 @@ class Guidance():
 			# Setup first waypoint segment
 			self.send_wp(self.waypoints[0])
 			self.waypoint_counter += 1
-			# Initialiseation of breadcrumb waypoints
+			# Initialisation of breadcrumb waypoints
 			self.breadcrumbWaypointsCounter = 0
 			self.breadcrumbMode = False
 			self.breadcrumbWaypoints = []
@@ -262,8 +262,11 @@ class Guidance():
 
 		# "waypoint_counter" represents the "next waypoint"
 		# "waypoint_counter - 1" represents the "current waypoint"
-		rospy.loginfo("Resuming flight plan from waypoint %i!" % (self.waypoint_counter - 1))
-		self.send_wp(self.waypoints[self.waypoint_counter - 1])
+		#rospy.loginfo("Resuming flight plan from waypoint %i!" % (self.waypoint_counter - 1))
+		#self.send_wp(self.waypoints[self.waypoint_counter - 1])
+
+		rospy.loginfo("Resuming flight plan to waypoint %i!" % (self.waypoint_counter))
+		self.send_wp(self.waypoints[self.waypoint_counter])
 		# Unset our flag that we are performing a diversion
 		# to allow the waypoint timer to take back over
 		self.performing_roi = False
@@ -334,13 +337,35 @@ class Guidance():
 
 						res = self.srvc_bc(req)
 
-						
-
 						# Breadcrumb will return a vector of poses if a solution was found				# If no solution was found (i.e. no solution, or request bad
 						# start/end), then breadcrumb returns and empty vector
 						# XXX: You could also use res.path_sparse (see breadcrumb docs)
 						breadcrumbWaypoints = []
-						if len(res.path.poses) > 0:
+						if len(res.path_sparse.poses) > 0:
+							# Print the path to the screen
+							rospy.loginfo("Segment {} to {}:".format(self.waypoint_counter - 1, self.waypoint_counter))
+							rospy.loginfo("[%0.2f;%0.2f;%0.2f] => [%0.2f;%0.2f;%0.2f]",
+										req.start.x,req.start.y,req.start.z,
+										req.end.x,req.end.y,req.end.z)
+
+							# Loop through the solution returned from breadcrumb
+							for i in range(len(res.path_sparse.poses)):
+								rospy.loginfo("    [%0.2f;%0.2f;%0.2f]",
+											res.path_sparse.poses[i].position.x,
+											res.path_sparse.poses[i].position.y,
+											res.path_sparse.poses[i].position.z)
+								breadcrumbWaypoints.append([res.path_sparse.poses[i].position.x, res.path_sparse.poses[i].position.y, res.path_sparse.poses[i].position.z, 0.0])
+							# Display path
+							#print(breadcrumbWaypoints)
+							self.breadcrumbWaypoints = breadcrumbWaypoints
+							self.display_path(breadcrumbWaypoints, "/guidance/pathBreadcrumb")
+							self.breadcrumbMode = True
+							self.breadcrumbWaypointsCounter = 0
+							self.send_wp(self.breadcrumbWaypoints[self.breadcrumbWaypointsCounter])
+							self.breadcrumbWaypointsCounter += 1
+
+						elif len(res.path.poses) > 0:
+							rospy.loginfo("Sparse Pathing Unavailable, Using Default Pathing")
 							# Print the path to the screen
 							rospy.loginfo("Segment {} to {}:".format(self.waypoint_counter - 1, self.waypoint_counter))
 							rospy.loginfo("[%0.2f;%0.2f;%0.2f] => [%0.2f;%0.2f;%0.2f]",
@@ -364,7 +389,7 @@ class Guidance():
 							self.breadcrumbWaypointsCounter += 1
 
 						else:
-							rospy.logerr("solution not found")	
+							rospy.logerr("solution not found")
 
 					else:
 						if self.breadcrumbWaypointsCounter < (len(self.breadcrumbWaypoints)):
@@ -390,11 +415,12 @@ class Guidance():
 		rospy.loginfo("Displaying Path...")
 		pub_path = rospy.Publisher(name , Path, queue_size=10,latch=True)
 		msg = Path()
-		msg.header.frame_id = "/map"
+		msg.header.frame_id = "map"
 		msg.header.stamp =rospy.Time.now()
 
 		for wp in wps:
 			pose = PoseStamped()
+			pose.header.frame_id = "map"
 			pose.pose.position.x = wp[0]
 			pose.pose.position.y = wp[1]
 			pose.pose.position.z = wp[2]
