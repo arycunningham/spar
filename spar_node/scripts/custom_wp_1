@@ -55,6 +55,7 @@ class Guidance():
 		self.performing_roi = False
         # Battery status
 		self.topic_battery = '/mavros/battery'
+		# self.topic_battery = '/uavasr/battery'
 		# Creates a battery percentage to be used later
 		self.battery_per = 0
         # Subscriber for current battery
@@ -68,7 +69,7 @@ class Guidance():
 		# Make some space to record down our current location
 		self.current_location = Point()
 		# Set our linear and rotational velocities for the flight
-		self.vel_linear = rospy.get_param("~vel_linear", 0.2)
+		self.vel_linear = rospy.get_param("~vel_linear", 0.4)
 		self.vel_yaw = rospy.get_param("~vel_yaw", 0.2)
 		# Set our position and yaw waypoint accuracies
 		self.accuracy_pos = rospy.get_param("~acc_pos", 0.1)
@@ -96,9 +97,9 @@ class Guidance():
 			# from a diversion to the correct location
 
 			# Uncomment for flight day
-			# self.sub_pose = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, self.callback_pose)
+			self.sub_pose = rospy.Subscriber("/mavros/local_position/pose", PoseStamped, self.callback_pose)
 			#Use for emulation
-			self.sub_pose = rospy.Subscriber("/uavasr/pose", PoseStamped, self.callback_pose)
+			# self.sub_pose = rospy.Subscriber("/uavasr/pose", PoseStamped, self.callback_pose)
 			# Subscriber to catch "ROI" diversion commands
 			self.sub_roi = rospy.Subscriber("/target_detection/roi", PoseStamped, self.callback_inspect_roi)
 			# Publisher to output our waypoint progress
@@ -129,16 +130,17 @@ class Guidance():
 	# Updates the battery percentage everytime it changes
 	def callback_battery(self, msg_in):
 		self.battery_per = msg_in.percentage
+		self.uav_health()
 	
 	# When the battery drops below 20% the drone automatically lands
-	def uav_health(self, timer=None):
+	def uav_health(self):
 		if self.battery_per <= self.critical_battery:
-			self.printAndSave("Battery under critical level, Safe landing start.")
+			rospy.loginfo("Battery under critical level, Safe landing start.")
 			goal = FlightMotionGoal()
 			goal.motion = FlightMotionGoal.MOTION_LAND
 			goal.velocity_vertical = rospy.get_param("~speed", 0.2)
-			spar_client.send_goal(goal)
-			self.printAndSave("Emergency land completed.")
+			self.spar_client.send_goal(goal)
+			rospy.loginfo("Emergency land completed")
 
 	# This function will check if a list of waypoints is in the format we expect
 	def check_waypoints(self, wps):
@@ -389,7 +391,15 @@ class Guidance():
 							self.breadcrumbWaypointsCounter += 1
 
 						else:
-							rospy.logerr("solution not found")
+							rospy.logerr("solution not found for waypoint %d", self.breadcrumbWaypointsCounter)
+
+							# Skip this waypoint and try the next one if available
+							self.waypoint_counter += 1
+							if self.waypoint_counter < len(self.waypoints):
+								self.send_wp(self.waypoints[self.waypoint_counter])
+								self.waypoint_counter += 1
+							else:
+								rospy.logwarn("No more waypoints to process.")						
 
 					else:
 						if self.breadcrumbWaypointsCounter < (len(self.breadcrumbWaypoints)):
@@ -441,28 +451,43 @@ def main(args):
 	surveyAltitude = rospy.get_param("~surveyAlt", 1.9)
 	# List of waypoints
 	# [X, Y, Z, Yaw]
-	wps = [[ 0.0, 0.0, surveyAltitude, 0.0],
-		   [ 4.0, -2.5, surveyAltitude, 0.0],
-		   [ 4.0, 2.5, surveyAltitude, 0.0],
-		   [-4.0, 2.5, surveyAltitude, 0.0],
-		   [-4.0,-2.5, surveyAltitude, 0.0],
-		   [ 4.0,-2.5, surveyAltitude, 0.0],
-		   [ 3.0,-1.875, surveyAltitude, 0.0],
-		   [ 3.0,1.875, surveyAltitude, 0.0],
-		   [ -3.0,1.875, surveyAltitude, 0.0],
-		   [ -3.0,-1.875, surveyAltitude, 0.0],
-		   [ 3.0,-1.875, surveyAltitude, 0.0],
-		   [ 2.0,-1.25, surveyAltitude, 0.0],
-		   [ 2.0,1.25, surveyAltitude, 0.0],
-		   [ -2.0,1.25, surveyAltitude, 0.0],
-		   [ -2.0,-1.25, surveyAltitude, 0.0],
-		   [ 2.0,-1.25, surveyAltitude, 0.0],
-		   [ 1.0,-0.625, surveyAltitude, 0.0],
-		   [ 1.0,0.625, surveyAltitude, 0.0],
-		   [ -1.0,0.625, surveyAltitude, 0.0],
-		   [ -1.0,-0.625, surveyAltitude, 0.0],
-		   [ 1.0,-0.625, surveyAltitude, 0.0]]
-
+	wps = [
+		[ 0.0,   0.0,  surveyAltitude, 0.0],
+		[ 4.0,  -2.4,  surveyAltitude, 0.0],
+		[ 4.0,  -0.2,  surveyAltitude, 0.0],
+		[ 4.0,   2.0,  surveyAltitude, 0.0],
+		[ 3.4,   2.0,  surveyAltitude, 0.0],  
+		[ 2.8,   2.0,  surveyAltitude, 0.0],
+		[ 2.8,  -0.2,  surveyAltitude, 0.0],  
+		[ 2.8,  -2.4,  surveyAltitude, 0.0],
+		[ 2.4,  -2.4,  surveyAltitude, 0.0],  
+		[ 2.0,  -2.4,  surveyAltitude, 0.0],
+		[ 2.0,  -0.2,  surveyAltitude, 0.0],  
+		[ 2.0,   2.0,  surveyAltitude, 0.0],
+		[ 1.5,   2.0,  surveyAltitude, 0.0],
+		[ 1.0,   2.0,  surveyAltitude, 0.0],
+		[ 1.0,  -0.2,  surveyAltitude, 0.0],
+		[ 1.0,  -2.4,  surveyAltitude, 0.0],
+		[ 0.5,  -2.4,  surveyAltitude, 0.0],
+		[ 0.0,  -2.4,  surveyAltitude, 0.0],
+		[ 0.0,  -0.2,  surveyAltitude, 0.0],
+		[ 0.0,   2.0,  surveyAltitude, 0.0],
+		[-0.5,   2.0,  surveyAltitude, 0.0],
+		[-1.0,   2.0,  surveyAltitude, 0.0],
+		[-1.0,  -0.2,  surveyAltitude, 0.0],
+		[-1.0,  -2.4,  surveyAltitude, 0.0],
+		[-1.5,  -2.4,  surveyAltitude, 0.0],
+		[-2.0,  -2.4,  surveyAltitude, 0.0],
+		[-2.0,  -0.2,  surveyAltitude, 0.0],
+		[-2.0,   2.0,  surveyAltitude, 0.0],
+		[-2.5,   2.0,  surveyAltitude, 0.0],
+		[-3.0,   2.0,  surveyAltitude, 0.0],
+		[-3.0,  -0.2,  surveyAltitude, 0.0],
+		[-3.0,  -2.4,  surveyAltitude, 0.0],
+		[-3.5,  -2.4,  surveyAltitude, 0.0],
+		[-4.0,  -2.4,  surveyAltitude, 0.0],
+		[-4.0,  -0.2,  surveyAltitude, 0.0],
+		[-4.0,   2.0,  surveyAltitude, 0.0]]
 
 	# Create our guidance class option
 	guide = Guidance(wps)
