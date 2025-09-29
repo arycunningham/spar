@@ -46,7 +46,7 @@ class Guidance():
 		self.current_yaw = 0.0
 
 		# Creates critical battery percentage
-		self.critical_battery = 0.2
+		self.critical_battery = 0.15
 
 		# Set a flag to indicate that we are doing a specific inspection
 		# and that we are not following our waypoint list
