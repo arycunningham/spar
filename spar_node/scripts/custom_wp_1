@@ -61,6 +61,10 @@ class Guidance():
         # Subscriber for current battery
 		self.sub_battery = rospy.Subscriber(self.topic_battery, BatteryState, self.callback_battery)
 
+		self.roi_type = None
+		self.aruco_marker_id = None
+
+
 		# Save the input waypoints
 		self.waypoints = waypoints
 		# Display full path
@@ -104,6 +108,17 @@ class Guidance():
 			self.sub_roi = rospy.Subscriber("/target_detection/roi", PoseStamped, self.callback_inspect_roi)
 			# Publisher to output our waypoint progress
 			self.pub_progress = rospy.Publisher("/waypoint_progress", Float32, queue_size=10)		
+
+			self.sub_roi_type = rospy.Subscriber('/target_detection/type', String, self.callback_roi_type)
+			self.sub_aruco_id = rospy.Subscriber('/target_detection/aruco_id', Int32, self.callback_aruco_id)
+
+
+			# Subscribe for ROI target type
+			self.sub_roi_type = rospy.Subscriber('/target_detection/type', String, self.callback_aruco_landing)
+			# Subscriber for aruco number
+			self.sub_aruco_id = rospy.Subscriber('/target_detection/aruco_id', Int32, self.callback_aruco_landing)			
+			# Subscriber for ROI pose
+			self.roi_pose = rospy.Subscriber('/target_detection/roi', PoseStamped, self.callback_aruco_landing)
 
 			# Publishes to servo motor
 			self.pub_a = rospy.Publisher('/actuator_control/actuator_a', Bool, queue_size=10)
@@ -204,6 +219,25 @@ class Guidance():
 		self.current_location = msg_in.pose.position
 		self.current_yaw = self.yaw_calc(msg_in.pose.orientation)
 		#rospy.loginfo("Coordinates are: %s", self.current_location)
+
+	def callback_roi_type(self, msg_in):
+		self.roi_type = msg_in.data
+		rospy.loginfo("ROI type updated: %s", self.roi_type)
+
+	def callback_aruco_id(self, msg_in):
+		self.aruco_marker_id = msg_in.data
+		rospy.loginfo("Aruco ID updated: %d", self.aruco_marker_id)
+
+	def callback_aruco_landing(self, msg_in):
+    	# Make sure we actually have valid ROI and aruco ID data
+    	if self.roi_type == 'marker' and self.aruco_marker_id == 4:
+        	self.land_wp = [
+            	msg_in.pose.position.x,
+            	msg_in.pose.position.y,
+            	self.surveytAlt,
+            	0.0
+        	]
+        	rospy.loginfo("Landing waypoint set: %s", self.land_wp)
 
 	# This function will fire whenever a ROI pose message is sent
 	# It is also responsible for handling the ROI "inspection task"
