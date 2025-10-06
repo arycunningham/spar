@@ -79,6 +79,9 @@ class Guidance():
 		# Get survey Alitude
 		self.surveytAlt = rospy.get_param("~surveyAltitude", 1.9)
 
+		# Record and store ROI that have been visited
+		self.roi_visited = {}
+
 		# Create our action client
 		action_ns = rospy.get_param("~action_topic", 'spar/flight')
 		self.spar_client = actionlib.SimpleActionClient(action_ns, FlightMotionAction)
@@ -231,6 +234,25 @@ class Guidance():
 	# This function will fire whenever a ROI pose message is sent
 	# It is also responsible for handling the ROI "inspection task"
 	def callback_inspect_roi(self, msg_in):
+		# Get ROI Position
+		#roi_x = round(msg_in.pose.position.x, 2)
+		#roi_y = round(msg_in.pose.position.y, 2)
+		#roi_pose = f"{roi_x}_{roi_y}"
+
+		# Get ROI type
+		#header = getattr(msg_in, "_connection_header", {}) or {}
+		#topic = header.get("topic", "roi")
+		#roi_type = topic.split("/")[-1] # fire / smoke
+
+		# final ROI ID 
+		#roi_id = f"{roi_type}_{roi_pose}"
+
+		# Check if we've already visited this ROI
+		#if roi_id in self.roi_visited:
+			#rospy.loginfo("ROI already visited - Cancelling diversion...")
+			#return
+
+
 		# Set our flag that we are performing the diversion
 		self.performing_roi = True
 
@@ -272,8 +294,10 @@ class Guidance():
 		self.pub_b.publish(False)
 
 		rospy.loginfo("Stopping servo motors")
-
 		rospy.loginfo("Returning to flight plan...")
+
+		# Mark ROI as visited
+		#self.roi_visited[roi_id] = True
 
 		# Return back to waypoint
 		self.send_wp(rwp)
