@@ -60,6 +60,9 @@ class Guidance():
         self.landing_marker_detected = False
         self.landing_wp = None
         
+        # Landing marker ID configuration
+        self.landing_marker_id = 4  # The ID of the landing marker
+        
         # Make some space to record down our current location
         self.current_location = Point()
         
@@ -107,14 +110,14 @@ class Guidance():
             
             # Subscriber to update the ROI pose everytime it changes
             self.sub_roi_pose = rospy.Subscriber('/target_detection/roi', PoseStamped, self.callback_aruco_landing)
-            self.roi_type = ""
+            self.roi_type = String()
+            self.markerID = rospy.Subscriber('/target_detection/marker_num', String, self.callback_marker_number)
+            self.marker_number = String()
+            self.pub_performing_roi = rospy.Publisher('/guidance/performing_roi', Bool, queue_size=10)
 
             # Publishes to servo motor
             self.pub_a = rospy.Publisher('/actuator_control/actuator_a', Bool, queue_size=10)
             self.pub_b = rospy.Publisher('/actuator_control/actuator_b', Bool, queue_size=10)
-
-            # Subscribes to processed ArUco images
-            self.aruco_sub = rospy.Publisher('/processed_aruco/image/compressed', CompressedImage, queue_size=10)
 
             # Setup first waypoint segment
             self.send_wp(self.waypoints[0])
@@ -130,16 +133,32 @@ class Guidance():
 
             # If shutdown is issued (eg. CTRL+C), cancel current mission before rospy is shutdown.
             rospy.on_shutdown( lambda : self.shutdown() )
+    
+    def is_valid_marker(self, roi_type):
+        # Use the marker number from callback_marker_number if available
+        if hasattr(self, 'marker_number') and self.marker_number and hasattr(self.marker_number, 'data') and self.marker_number.data.isdigit():
+            marker_number = self.marker_number  # Keep as String message
+            return True, marker_number
+        else:
+            # Not a marker type or no valid marker number available
+            return False, None
 
-    def extract_roi_type_category(self, roi_type):
-        """
-        Extract the main category from ROI type string.
-        Examples:
-        - "fire" -> "fire"
-        - "smoke" -> "smoke" 
-        - "ArUco_4" -> "marker_4"
-        - "marker_4" -> "marker_4"
-        """
+    def is_landing_marker(self, roi_type):
+        is_marker, marker_number = self.is_valid_marker(roi_type)
+        if is_marker and marker_number is not None:
+            # Compare string to integer (landing_marker_id is int)
+            return int(marker_number) == self.landing_marker_id
+        return False
+
+    def extract_roi_type_category(self, roi_type, marker_number=None):
+        #
+        # Extract the main category from ROI type string.
+        # Examples:
+        #- "fire" -> "fire"
+        #- "smoke" -> "smoke" 
+        #- "ArUco_4" -> "marker_4"
+        #- "marker_4" -> "marker_4"
+        
         roi_type_lower = roi_type.lower()
         
         # Check for fire
@@ -150,31 +169,32 @@ class Guidance():
         if 'smoke' in roi_type_lower:
             return 'smoke'
         
-        # Check for ArUco markers
-        if 'aruco' in roi_type_lower or 'marker' in roi_type_lower:
-            # Extract marker number
-            import re
-            numbers = re.findall(r'\d+', roi_type)
-            if numbers:
-                return f'marker_{numbers[0]}'
+        # Check for ArUco markers - use the provided marker_number or fall back to self.marker_number
+        if marker_number and hasattr(marker_number, 'data') and marker_number.data.isdigit():
+            marker_id = marker_number.data
+            return f'marker_{marker_id}'
+        elif hasattr(self, 'marker_number') and self.marker_number and hasattr(self.marker_number, 'data') and self.marker_number.data.isdigit():
+            marker_id = self.marker_number.data
+            return f'marker_{marker_id}'
         
         # Return original type if no specific pattern matched
         return roi_type_lower
 
-    def has_visited_roi_type(self, roi_type):
-        """
-        Check if this type of ROI has already been visited
-        """
-        category = self.extract_roi_type_category(roi_type)
-        return category in self.visited_roi_types
-
-    def mark_roi_type_visited(self, roi_type):
-        """
-        Mark an ROI type as visited
-        """
-        category = self.extract_roi_type_category(roi_type)
+    def mark_roi_type_visited(self, roi_type, marker_number=None):
+        # Mark an ROI type as visited
+        category = self.extract_roi_type_category(roi_type, marker_number)
         self.visited_roi_types.add(category)
         rospy.loginfo(f"Marked ROI type '{category}' as visited. Total visited types: {list(self.visited_roi_types)}")
+
+    def has_visited_roi_type(self, roi_type, marker_number=None):
+        # Check if this type of ROI has already been visited
+        category = self.extract_roi_type_category(roi_type, marker_number)
+        has_visited = category in self.visited_roi_types
+        if has_visited:
+            rospy.loginfo(f"ROI type '{category}' has already been visited - skipping")
+        else:
+            rospy.loginfo(f"ROI type '{category}' is new - proceeding with inspection")
+        return has_visited
 
     # Updates the battery percentage everytime it changes
     def callback_battery(self, msg_in):
@@ -258,34 +278,65 @@ class Guidance():
     def callback_roi_type(self, msg_in):
         self.roi_type = msg_in.data
 
-        if self.landing_phase and "marker_4" in self.roi_type:
+        # Check if this is a valid landing marker
+        if self.landing_phase and self.is_landing_marker(self.roi_type):
             self.landing_marker_detected = True
-            rospy.loginfo("Landing marker detected")
-
+            rospy.loginfo("Valid landing marker detected")
+        elif self.landing_phase:
+            # Log if it's a marker but not the landing marker
+            is_marker, marker_number = self.is_valid_marker(self.roi_type)
+            if is_marker:
+                rospy.loginfo(f"Detected marker {marker_number}, but waiting for landing marker {self.landing_marker_id}")
+    
+    def callback_marker_number(self, msg_in):
+        self.marker_number = msg_in.data
+        
+        # Also update roi_type to be consistent
+        if hasattr(self, 'roi_type'):
+            self.roi_type = f"marker_{self.marker_number}"
+    
     def callback_aruco_landing(self, msg_in):
-        if hasattr(self, 'roi_type') and "marker_4" in self.roi_type:
+        # Only set landing waypoint if it's a valid landing marker
+        if hasattr(self, 'roi_type') and self.is_landing_marker(self.roi_type):
             self.landing_wp = [msg_in.pose.position.x, msg_in.pose.position.y, self.surveytAlt, 0.0]
             rospy.loginfo(f"Landing waypoint set: {self.landing_wp}")
 
     # This function will fire whenever a ROI pose message is sent
     # It is also responsible for handling the ROI "inspection task"
     def callback_inspect_roi(self, msg_in):
-        # Check if we've already visited this type of ROI
-        if self.has_visited_roi_type(self.roi_type):
+        # Capture the marker number at the time of ROI detection
+        current_marker_number = self.marker_number if hasattr(self, 'marker_number') else None
+        
+        # Validate marker type before processing
+        is_marker, marker_number = self.is_valid_marker(self.roi_type)
+        if is_marker:
+            marker_num_str = marker_number.data if hasattr(marker_number, 'data') else None
+            rospy.loginfo(f"Processing valid ArUco marker {marker_number}")
+            
+            # Check if this is the landing marker during landing phase
+            if self.landing_phase and marker_number and int(marker_number) == self.landing_marker_id:
+                rospy.loginfo("Landing marker detected during ROI inspection - initiating landing procedure")
+                self.initiate_landing_sequence(msg_in)
+                return
+        else:
+            rospy.loginfo(f"Processing ROI type: {self.roi_type}")
+
+        # Check if we've already visited this type of ROI using the captured marker number
+        if self.has_visited_roi_type(self.roi_type, current_marker_number):
             rospy.loginfo(f"Skipping ROI diversion - already visited type: {self.roi_type}")
             return
-        
-        # Set our flag that we are performing the diversion
-        self.performing_roi = True
 
+        # Set our flag that we are performing the diversion
+        self.performing_roi = True 
+        self.pub_performing_roi.publish(True)
         rospy.loginfo("Starting diversion to ROI...")
-        
-        # Mark this ROI type as visited BEFORE starting the diversion
-        self.mark_roi_type_visited(self.roi_type)
-        
+
+        # Mark this ROI type as visited using the captured marker number
+        self.mark_roi_type_visited(self.roi_type, current_marker_number)
+
         # Cancel the current goal (if there is one)
         self.spar_client.cancel_goal()
-        
+
         # Record our current location so we can return to it later
         start_location = self.current_location
         start_yaw = self.current_yaw
@@ -312,7 +363,7 @@ class Guidance():
         roi_type_lower = self.roi_type.lower()
         activate_servo_a = False
         activate_servo_b = False
-        
+
         if 'fire' in roi_type_lower:
             activate_servo_a = True
             rospy.loginfo("Fire detected - activating Servo A for fire extinguisher deployment")
@@ -325,7 +376,7 @@ class Guidance():
         # Activate the appropriate servos
         self.pub_a.publish(activate_servo_a)
         self.pub_b.publish(activate_servo_b)
-        
+
         if activate_servo_a or activate_servo_b:
             rospy.loginfo("Dispensing Payload")
             rospy.sleep(rospy.Duration(10))
@@ -350,10 +401,47 @@ class Guidance():
 
         rospy.loginfo("Resuming flight plan to waypoint %i!" % (self.waypoint_counter))
         self.send_wp(self.waypoints[self.waypoint_counter])
-        
+
         # Unset our flag that we are performing a diversion
         # to allow the waypoint timer to take back over
         self.performing_roi = False
+
+    def initiate_landing_sequence(self, msg_in):
+        """
+        Initiate landing procedure when landing marker is detected
+        """
+        rospy.loginfo("Initiating landing sequence...")
+        
+        # Cancel current goals
+        self.spar_client.cancel_goal()
+        
+        # Set landing waypoint above the marker
+        landing_approach_wp = [msg_in.pose.position.x, msg_in.pose.position.y, self.surveytAlt, 0.0]
+        
+        # First go to position above the marker
+        self.send_wp(landing_approach_wp)
+        rospy.loginfo(f"Moving to position above landing marker: {landing_approach_wp}")
+        
+        self.spar_client.wait_for_result()
+        if self.spar_client.get_state() != GoalStatus.SUCCEEDED:
+            rospy.logwarn("Failed to reach landing approach position")
+            return
+        
+        rospy.loginfo("Reached landing approach position, beginning descent...")
+        
+        # Begin landing
+        goal = FlightMotionGoal()
+        goal.motion = FlightMotionGoal.MOTION_LAND
+        goal.velocity_vertical = rospy.get_param("~speed", 0.2)
+        self.spar_client.send_goal(goal)
+        self.spar_client.wait_for_result()
+        
+        if self.spar_client.get_state() == GoalStatus.SUCCEEDED:
+            rospy.loginfo("Landing complete")
+            rospy.signal_shutdown("landed")
+        else:
+            rospy.logwarn("Landing failed")
+            rospy.signal_shutdown("landing_failed")
 
     # This function is for convenience to simply send out a new waypoint
     def send_wp(self, wp):
@@ -480,8 +568,10 @@ class Guidance():
                         rospy.loginfo("All waypoints complete, starting landing procedure...")
                         self.mission_complete = True
                         self.landing_phase = True
+                        
+                        # Check if we already have a valid landing marker detected
                         if self.landing_marker_detected and self.landing_wp is not None:
-                            rospy.loginfo("Landing marker detected, heading to landing waypoint...")
+                            rospy.loginfo("Valid landing marker already detected, heading to landing waypoint...")
                             self.send_wp(self.landing_wp)
                             self.spar_client.wait_for_result()
                             if self.spar_client.get_state() != GoalStatus.SUCCEEDED:
@@ -489,26 +579,35 @@ class Guidance():
                                 rospy.signal_shutdown("cancelled")
                                 return
                             rospy.loginfo("Reached landing waypoint, starting landing...")
+                            self.initiate_landing_sequence_from_waypoint()
                         else:
-                            rospy.loginfo("No landing marker detected, landing at current position...")
-                        goal = FlightMotionGoal()
-                        goal.motion = FlightMotionGoal.MOTION_LAND
-                        goal.velocity_vertical = rospy.get_param("~speed", 0.2)
-                        self.spar_client.send_goal(goal)
-                        self.spar_client.wait_for_result()
-                        if self.spar_client.get_state() != GoalStatus.SUCCEEDED:
-                            # Something went wrong, cancel out of guidance!
-                            rospy.signal_shutdown("cancelled")
-                            return
-                        rospy.loginfo("Landing complete")
-                        # Landed safely, shutdown the node
-                        rospy.signal_shutdown("landed")
+                            rospy.loginfo("No valid landing marker detected, waiting for marker detection or landing at current position...")
+                            # You could add a timeout here to land at current position if no marker is detected
+                            rospy.sleep(rospy.Duration(5))  # Wait 5 seconds for marker detection
+                            if not self.landing_marker_detected:
+                                rospy.loginfo("No landing marker detected within timeout, landing at current position...")
+                                self.initiate_landing_sequence_from_waypoint()
                     # Else the mission is over, shutdown and quit the node
                     rospy.loginfo("Mission complete!")
                     rospy.signal_shutdown("complete")
             elif (self.spar_client.get_state() == GoalStatus.PREEMPTED) or (self.spar_client.get_state() == GoalStatus.ABORTED) or (self.spar_client.get_state() == GoalStatus.REJECTED):
                 rospy.loginfo("Mission cancelled!")
                 rospy.signal_shutdown("cancelled")
+
+    def initiate_landing_sequence_from_waypoint(self):
+        """Initiate landing from current position"""
+        goal = FlightMotionGoal()
+        goal.motion = FlightMotionGoal.MOTION_LAND
+        goal.velocity_vertical = rospy.get_param("~speed", 0.2)
+        self.spar_client.send_goal(goal)
+        self.spar_client.wait_for_result()
+        if self.spar_client.get_state() != GoalStatus.SUCCEEDED:
+            # Something went wrong, cancel out of guidance!
+            rospy.signal_shutdown("cancelled")
+            return
+        rospy.loginfo("Landing complete")
+        # Landed safely, shutdown the node
+        rospy.signal_shutdown("landed")
 
     # Visualize waypoints
     def display_path(self, wps, name):

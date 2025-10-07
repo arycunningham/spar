@@ -60,7 +60,7 @@ if __name__ == '__main__':
 	# Setup tf2 broadcasters
 	#    Broadcaster sends a transformation that
 	#    can be found at specific time
-	tfbr = tf2_ros.TransformBroadcaster()
+	# tfbr = tf2_ros.TransformBroadcaster()
 	#    Static broadcaster sends a transformation
 	#    that is true for all time
 	tfsbr = tf2_ros.StaticTransformBroadcaster()
