@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import math
 
@@ -55,12 +55,12 @@ if __name__ == '__main__':
 
 	# Setup pose subscriber
 	# This functionality is provided by the emulator
-	#rospy.Subscriber('/emulated_uav/pose', PoseStamped, callback_pose)
+	emulated_pose = rospy.Subscriber('/emulated_uav/pose', PoseStamped, callback_pose)
 
 	# Setup tf2 broadcasters
 	#    Broadcaster sends a transformation that
 	#    can be found at specific time
-	#tfbr = tf2_ros.TransformBroadcaster()
+	tfbr = tf2_ros.TransformBroadcaster()
 	#    Static broadcaster sends a transformation
 	#    that is true for all time
 	tfsbr = tf2_ros.StaticTransformBroadcaster()
