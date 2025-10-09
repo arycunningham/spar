@@ -61,7 +61,7 @@ class Guidance():
         self.landing_wp = None
         
         # Landing marker ID configuration
-        self.landing_marker_id = 4  # The ID of the landing marker
+        self.landing_marker = 'marker_4'  # The ID of the landing marker
         
         # Make some space to record down our current location
         self.current_location = Point()
@@ -75,7 +75,7 @@ class Guidance():
         self.accuracy_yaw = rospy.get_param("~acc_yaw", 0.1)
         
         # Get survey Altitude
-        self.surveytAlt = rospy.get_param("~surveyAltitude", 1.9)
+        self.surveyAlt = rospy.get_param("~surveyAltitude", 2.0)
 
         # Create our action client
         action_ns = rospy.get_param("~action_topic", 'spar/flight')
@@ -110,8 +110,7 @@ class Guidance():
             # Subscriber to update the ROI pose everytime it changes
             self.sub_roi_pose = rospy.Subscriber('/target_detection/roi', PoseStamped, self.callback_aruco_landing)
             self.roi_type = ""
-            self.markerID = rospy.Subscriber('/target_detection/marker_num', String, self.callback_marker_number)
-            self.marker_number = ""
+
             self.pub_performing_roi = rospy.Publisher('/guidance/performing_roi', Bool, queue_size=10)
 
             # Publishes to servo motor
@@ -134,25 +133,6 @@ class Guidance():
 
             # If shutdown is issued (eg. CTRL+C), cancel current mission before rospy is shutdown.
             rospy.on_shutdown( lambda : self.shutdown() )
-    
-    def is_valid_marker(self, roi_type):
-        roi_type_lower = roi_type.lower()
-        
-        if 'marker' in roi_type_lower:
-            # Extract marker number if available in the format "marker_X"
-            if '_' in roi_type_lower:
-                marker_num = roi_type_lower.split('_')[-1]
-                return True, marker_num
-            else:
-                # If no specific marker number, use the one from callback
-                return True, self.marker_number
-        return False, ""
-    
-    def is_landing_marker(self, roi_type):
-        is_marker, marker_num = self.is_valid_marker(roi_type)
-        if is_marker and marker_num == str(self.landing_marker_id):
-            return True
-        return False
 
     def extract_roi_type_category(self, roi_type):
         #
@@ -170,9 +150,6 @@ class Guidance():
         # Check for smoke
         if 'smoke' in roi_type_lower:
             return 'smoke'
-        
-        if 'marker' in roi_type_lower:
-            return roi_type_lower
         
         # Return original type if no specific pattern matched
         return roi_type_lower
@@ -275,40 +252,23 @@ class Guidance():
     def callback_roi_type(self, msg_in):
         self.roi_type = msg_in.data
         rospy.loginfo(f"Detected ROI type: {self.roi_type}")
-
-        # Check if this is a valid landing marker
-        is_marker, marker_num = self.is_valid_marker(self.roi_type)  # Get marker number
-        if self.landing_phase and is_marker and marker_num == str(self.landing_marker_id):
-            self.landing_marker_detected = True
-            rospy.loginfo("Valid landing marker detected")
-        elif self.landing_phase and is_marker:
-            rospy.loginfo(f"Detected marker {marker_num}, but waiting for landing marker {self.landing_marker_id}")
-    
-    def callback_marker_number(self, msg_in):
-        self.marker_number = msg_in.data
     
     def callback_aruco_landing(self, msg_in):
         # Only set landing waypoint if it's a valid landing marker
-        if hasattr(self, 'roi_type') and self.is_landing_marker(self.roi_type):
-            self.landing_wp = [msg_in.pose.position.x, msg_in.pose.position.y, 0.5, 0.0]
+        if self.roi_type == self.landing_marker:
+            self.landing_marker_detected = True
+            self.landing_wp = [msg_in.pose.position.x, msg_in.pose.position.y, self.surveyAlt, 0.0]
             rospy.loginfo(f"Landing waypoint set: {self.landing_wp}")
 
     # This function will fire whenever a ROI pose message is sent
     # It is also responsible for handling the ROI "inspection task"
     def callback_inspect_roi(self, msg_in):
-        # Capture the marker number at the time of ROI detection
-        current_marker_number = self.marker_number
-        
         # Validate marker type before processing
-        is_marker, marker_num = self.is_valid_marker(self.roi_type)
-        if is_marker:
-            rospy.loginfo(f"Processing valid ArUco marker {marker_num}")
-            
             # Check if this is the landing marker during landing phase
-            if self.landing_phase and marker_num == str(self.landing_marker_id):
-                rospy.loginfo("Landing marker detected during ROI inspection - initiating landing procedure")
-                self.initiate_landing_sequence(msg_in)
-                return
+        if self.landing_phase and self.roi_type == self.landing_marker:
+            rospy.loginfo("Landing marker detected during ROI inspection - initiating landing procedure")
+            self.initiate_landing_sequence(msg_in)
+            return
         else:
             rospy.loginfo(f"Processing ROI type: {self.roi_type}")
 
@@ -333,7 +293,7 @@ class Guidance():
         start_yaw = self.current_yaw
 
         # Set the "diversion waypoint" (at yaw zero)
-        dwp = [msg_in.pose.position.x, msg_in.pose.position.y, self.surveytAlt, start_yaw]
+        dwp = [msg_in.pose.position.x, msg_in.pose.position.y, 0.5, start_yaw]
         # Set the "return waypoint" (at yaw zero)
         rwp = [start_location.x, start_location.y, start_location.z, start_yaw]
 
@@ -364,7 +324,7 @@ class Guidance():
             activate_servo_b = True
             rospy.loginfo("Smoke detected - activating Servo B for smoke detector deployment")
         else:
-            rospy.loginfo(f"Unknown ROI type '{self.roi_type}' - no payload deployment")
+            rospy.loginfo(f"Unknown payload ROI type '{self.roi_type}' - no payload deployment")
 
         # Activate the appropriate servos
         self.pub_a.publish(activate_servo_a)
@@ -409,7 +369,7 @@ class Guidance():
         self.spar_client.cancel_goal()
         
         # Set landing waypoint above the marker
-        landing_approach_wp = [msg_in.pose.position.x, msg_in.pose.position.y, self.surveytAlt, 0.0]
+        landing_approach_wp = [msg_in.pose.position.x, msg_in.pose.position.y, self.surveyAlt, 0.0]
         
         # First go to position above the marker
         self.send_wp(landing_approach_wp)
@@ -630,7 +590,7 @@ class Guidance():
 def main(args):
     # Initialise ROS
     rospy.init_node('guidance')
-    surveyAltitude = rospy.get_param("~surveyAlt", 1.9)
+    surveyAltitude = rospy.get_param("~surveyAlt", 2.0)
     # List of waypoints
     # [X, Y, Z, Yaw]
     wps = [
@@ -638,38 +598,38 @@ def main(args):
         [ 4.0,  -2.5,  surveyAltitude, 0.0],
         [ 4.0,   0.0,  surveyAltitude, 0.0],
         [ 4.0,   2.5,  surveyAltitude, 0.0],
-        [ 3.5,   2.0,  surveyAltitude, 0.0],  
-        [ 3.0,   2.0,  surveyAltitude, 0.0],
-        [ 3.0,   0.0,  surveyAltitude, 0.0],  
+        [ 3.5,   2.5,  surveyAltitude, 0.0],  
+        [ 3.0,   2.5,  surveyAltitude, 0.0],
+        [ 3.0,   0.5,  surveyAltitude, 0.0],  
         [ 3.0,  -2.5,  surveyAltitude, 0.0],
         [ 2.5,  -2.5,  surveyAltitude, 0.0],  
         [ 2.0,  -2.5,  surveyAltitude, 0.0],
         [ 2.0,   0.0,  surveyAltitude, 0.0],  
-        [ 2.0,   2.0,  surveyAltitude, 0.0],
-        [ 1.5,   2.0,  surveyAltitude, 0.0],
-        [ 1.0,   2.0,  surveyAltitude, 0.0],
+        [ 2.0,   2.5,  surveyAltitude, 0.0],
+        [ 1.5,   2.5,  surveyAltitude, 0.0],
+        [ 1.0,   2.5,  surveyAltitude, 0.0],
         [ 1.0,   0.0,  surveyAltitude, 0.0],
         [ 1.0,  -2.5,  surveyAltitude, 0.0],
         [ 0.5,  -2.5,  surveyAltitude, 0.0],
         [ 0.0,  -2.5,  surveyAltitude, 0.0],
         [ 0.0,   0.0,  surveyAltitude, 0.0],
-        [ 0.0,   2.0,  surveyAltitude, 0.0],
-        [-0.5,   2.0,  surveyAltitude, 0.0],
-        [-1.0,   2.0,  surveyAltitude, 0.0],
+        [ 0.0,   2.5,  surveyAltitude, 0.0],
+        [-0.5,   2.5,  surveyAltitude, 0.0],
+        [-1.0,   2.5,  surveyAltitude, 0.0],
         [-1.0,   0.0,  surveyAltitude, 0.0],
         [-1.0,  -2.5,  surveyAltitude, 0.0],
         [-1.5,  -2.5,  surveyAltitude, 0.0],
         [-2.0,  -2.5,  surveyAltitude, 0.0],
         [-2.0,   0.0,  surveyAltitude, 0.0],
-        [-2.0,   2.0,  surveyAltitude, 0.0],
-        [-2.5,   2.0,  surveyAltitude, 0.0],
-        [-3.0,   2.0,  surveyAltitude, 0.0],
+        [-2.0,   2.5,  surveyAltitude, 0.0],
+        [-2.5,   2.5,  surveyAltitude, 0.0],
+        [-3.0,   2.5,  surveyAltitude, 0.0],
         [-3.0,   0.0,  surveyAltitude, 0.0],
         [-3.0,  -2.5,  surveyAltitude, 0.0],
         [-3.5,  -2.5,  surveyAltitude, 0.0],
         [-4.0,  -2.5,  surveyAltitude, 0.0],
         [-4.0,   0.0,  surveyAltitude, 0.0],
-        [-4.0,   2.0,  surveyAltitude, 0.0]]
+        [-4.0,   2.5,  surveyAltitude, 0.0]]
 
     # Create our guidance class option
     guide = Guidance(wps)
