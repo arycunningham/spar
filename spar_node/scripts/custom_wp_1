@@ -290,7 +290,7 @@ class Guidance():
     def callback_aruco_landing(self, msg_in):
         # Only set landing waypoint if it's a valid landing marker
         if hasattr(self, 'roi_type') and self.is_landing_marker(self.roi_type):
-            self.landing_wp = [msg_in.pose.position.x, msg_in.pose.position.y, self.surveytAlt, 0.0]
+            self.landing_wp = [msg_in.pose.position.x, msg_in.pose.position.y, 0.5, 0.0]
             rospy.loginfo(f"Landing waypoint set: {self.landing_wp}")
 
     # This function will fire whenever a ROI pose message is sent
