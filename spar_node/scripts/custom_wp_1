@@ -350,6 +350,8 @@ class Guidance():
 
         rospy.loginfo("Reached diversion ROI!")
 
+        rospy.sleep(rospy.Duration(6))
+
         # Determine which servo to activate based on ROI type
         roi_type_lower = self.roi_type.lower()
         activate_servo_a = False
@@ -370,7 +372,7 @@ class Guidance():
 
         if activate_servo_a or activate_servo_b:
             rospy.loginfo("Dispensing Payload")
-            rospy.sleep(rospy.Duration(10))
+            rospy.sleep(rospy.Duration(6))
 
         # Deactivate deployment script
         self.pub_a.publish(False)
@@ -633,40 +635,40 @@ def main(args):
     # [X, Y, Z, Yaw]
     wps = [
         [ 0.0,   0.0,  surveyAltitude, 0.0],
-        [ 4.0,  -2.4,  surveyAltitude, 0.0],
-        [ 4.0,  -0.2,  surveyAltitude, 0.0],
-        [ 4.0,   2.0,  surveyAltitude, 0.0],
-        [ 3.4,   2.0,  surveyAltitude, 0.0],  
-        [ 2.8,   2.0,  surveyAltitude, 0.0],
-        [ 2.8,  -0.2,  surveyAltitude, 0.0],  
-        [ 2.8,  -2.4,  surveyAltitude, 0.0],
-        [ 2.4,  -2.4,  surveyAltitude, 0.0],  
-        [ 2.0,  -2.4,  surveyAltitude, 0.0],
-        [ 2.0,  -0.2,  surveyAltitude, 0.0],  
+        [ 4.0,  -2.5,  surveyAltitude, 0.0],
+        [ 4.0,   0.0,  surveyAltitude, 0.0],
+        [ 4.0,   2.5,  surveyAltitude, 0.0],
+        [ 3.5,   2.0,  surveyAltitude, 0.0],  
+        [ 3.0,   2.0,  surveyAltitude, 0.0],
+        [ 3.0,   0.0,  surveyAltitude, 0.0],  
+        [ 3.0,  -2.5,  surveyAltitude, 0.0],
+        [ 2.5,  -2.5,  surveyAltitude, 0.0],  
+        [ 2.0,  -2.5,  surveyAltitude, 0.0],
+        [ 2.0,   0.0,  surveyAltitude, 0.0],  
         [ 2.0,   2.0,  surveyAltitude, 0.0],
         [ 1.5,   2.0,  surveyAltitude, 0.0],
         [ 1.0,   2.0,  surveyAltitude, 0.0],
-        [ 1.0,  -0.2,  surveyAltitude, 0.0],
-        [ 1.0,  -2.4,  surveyAltitude, 0.0],
-        [ 0.5,  -2.4,  surveyAltitude, 0.0],
-        [ 0.0,  -2.4,  surveyAltitude, 0.0],
-        [ 0.0,  -0.2,  surveyAltitude, 0.0],
+        [ 1.0,   0.0,  surveyAltitude, 0.0],
+        [ 1.0,  -2.5,  surveyAltitude, 0.0],
+        [ 0.5,  -2.5,  surveyAltitude, 0.0],
+        [ 0.0,  -2.5,  surveyAltitude, 0.0],
+        [ 0.0,   0.0,  surveyAltitude, 0.0],
         [ 0.0,   2.0,  surveyAltitude, 0.0],
         [-0.5,   2.0,  surveyAltitude, 0.0],
         [-1.0,   2.0,  surveyAltitude, 0.0],
-        [-1.0,  -0.2,  surveyAltitude, 0.0],
-        [-1.0,  -2.4,  surveyAltitude, 0.0],
-        [-1.5,  -2.4,  surveyAltitude, 0.0],
-        [-2.0,  -2.4,  surveyAltitude, 0.0],
-        [-2.0,  -0.2,  surveyAltitude, 0.0],
+        [-1.0,   0.0,  surveyAltitude, 0.0],
+        [-1.0,  -2.5,  surveyAltitude, 0.0],
+        [-1.5,  -2.5,  surveyAltitude, 0.0],
+        [-2.0,  -2.5,  surveyAltitude, 0.0],
+        [-2.0,   0.0,  surveyAltitude, 0.0],
         [-2.0,   2.0,  surveyAltitude, 0.0],
         [-2.5,   2.0,  surveyAltitude, 0.0],
         [-3.0,   2.0,  surveyAltitude, 0.0],
-        [-3.0,  -0.2,  surveyAltitude, 0.0],
-        [-3.0,  -2.4,  surveyAltitude, 0.0],
-        [-3.5,  -2.4,  surveyAltitude, 0.0],
-        [-4.0,  -2.4,  surveyAltitude, 0.0],
-        [-4.0,  -0.2,  surveyAltitude, 0.0],
+        [-3.0,   0.0,  surveyAltitude, 0.0],
+        [-3.0,  -2.5,  surveyAltitude, 0.0],
+        [-3.5,  -2.5,  surveyAltitude, 0.0],
+        [-4.0,  -2.5,  surveyAltitude, 0.0],
+        [-4.0,   0.0,  surveyAltitude, 0.0],
         [-4.0,   2.0,  surveyAltitude, 0.0]]
 
     # Create our guidance class option
